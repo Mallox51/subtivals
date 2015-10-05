@@ -16,20 +16,24 @@
   **/
 #include <QApplication>
 #include <QtCore/QFileInfo>
+#include <QSettings>
 #include <QTranslator>
 
 #include "mainwindow.h"
 #include "subtitlesform.h"
 #include "configeditor.h"
 #include "player.h"
+#include "weblive.h"
 
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QSettings::setDefaultFormat(QSettings::IniFormat);
     QCoreApplication::setOrganizationName("Subtivals");
-    QCoreApplication::setOrganizationDomain("https://github.com/traxtech/subtivals/");
+    QCoreApplication::setOrganizationDomain("http://subtivals.org");
     QCoreApplication::setApplicationName("Subtivals");
+
+    QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(true);
 
     // Load translations (i18n) from system locale
@@ -41,7 +45,17 @@ int main(int argc, char *argv[])
 
     SubtitlesForm f;
     MainWindow w;
+    WebLive live;
 
+    // Live
+    QObject::connect(w.player(), SIGNAL(on(Subtitle*)), &live, SLOT(addSubtitle(Subtitle*)));
+    QObject::connect(w.player(), SIGNAL(off(Subtitle*)), &live, SLOT(remSubtitle(Subtitle*)));
+    QObject::connect(w.player(), SIGNAL(clear()), &live, SLOT(clearSubtitles()), Qt::DirectConnection);
+    QObject::connect(w.configEditor(), SIGNAL(webliveEnabled(bool)), &live, SLOT(enable(bool)));
+    QObject::connect(&live, SIGNAL(connected(bool, QString)), w.configEditor(), SLOT(webliveConnected(bool, QString)));
+    w.configEditor()->enableWeblive(live.configured());
+
+    // Projection screen
     QObject::connect(w.player(), SIGNAL(on(Subtitle*)), &f, SLOT(addSubtitle(Subtitle*)));
     QObject::connect(w.player(), SIGNAL(off(Subtitle*)), &f, SLOT(remSubtitle(Subtitle*)));
     QObject::connect(w.player(), SIGNAL(clear()), &f, SLOT(clearSubtitles()), Qt::DirectConnection);
@@ -57,6 +71,7 @@ int main(int argc, char *argv[])
 
     f.show();
     w.show();
+
     // If more than one arg and last arg is a file, open it
     if( argc > 1) {
         QFileInfo fileInfo(argv[argc - 1]);

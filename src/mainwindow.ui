@@ -236,7 +236,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -245,6 +245,7 @@
     </property>
     <addaction name="actionOpen"/>
     <addaction name="actionEnableReload"/>
+    <addaction name="actionOperatorPrintout"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
@@ -260,6 +261,7 @@
      <string>Help</string>
     </property>
     <addaction name="separator"/>
+    <addaction name="actionShowWizard"/>
     <addaction name="actionShowHelp"/>
     <addaction name="actionAbout"/>
    </widget>
@@ -300,6 +302,17 @@
    <addaction name="actionHide"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
   <action name="actionOpen">
    <property name="icon">
     <iconset resource="../resources/icons.qrc">
@@ -583,6 +596,19 @@
    </property>
    <property name="text">
     <string>Show milliseconds</string>
+   </property>
+  </action>
+  <action name="actionShowWizard">
+   <property name="text">
+    <string>Introduction...</string>
+   </property>
+   <property name="toolTip">
+    <string>Show introduction wizard</string>
+   </property>
+  </action>
+  <action name="actionOperatorPrintout">
+   <property name="text">
+    <string>Operator listing...</string>
    </property>
   </action>
  </widget>
@@ -943,6 +969,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionShowWizard</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>actionShowWizard()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>249</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionOperatorPrintout</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>actionOperatorPrintout()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>249</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <signal>configChanged()</signal>
@@ -967,5 +1025,7 @@
   <slot>actionDurationCorrection(bool)</slot>
   <slot>actionEditShortcuts()</slot>
   <slot>actionShowMilliseconds(bool)</slot>
+  <slot>actionShowWizard()</slot>
+  <slot>actionOperatorPrintout()</slot>
  </slots>
 </ui>

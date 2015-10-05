@@ -55,7 +55,7 @@ public:
     enum State { NODATA, STOPPED, PLAYING, PAUSED};
     void openFile (const QString &p_fileName);
     void closeFile();
-    const ConfigEditor* configEditor();
+    ConfigEditor* configEditor();
     const Player* player();
 signals:
     void toggleHide(bool state);
@@ -88,8 +88,11 @@ public slots:
     void search();
     void searchTextChanged(QString);
     void actionAutoHideEnded(bool);
+    void showStyleOverriden(bool);
     void actionEditShortcuts();
     void actionShowMilliseconds(bool);
+    void actionShowWizard();
+    void actionOperatorPrintout();
 protected:
     bool canNext();
     bool canPrevious();

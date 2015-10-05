@@ -33,7 +33,7 @@ class Script : public QObject
     Q_OBJECT
 public:
 
-    enum ScriptFormat { ASS, SRT, TXT };
+    enum ScriptFormat { ASS, SRT, TXT, XML, CSV };
 
     /*
      * Constructs a script from an subtitle file.
@@ -80,6 +80,7 @@ public:
     double totalDuration() const;
     QSize resolution() const;
     bool hasComments() const;
+    const QString exportList(ScriptFormat) const;
 public slots:
     /*
      * Activates duration correction of subtitles.
@@ -89,6 +90,7 @@ protected:
     void loadFromSrt(QStringList content);
     void loadFromAss(QStringList content);
     void loadFromTxt(QStringList content);
+    void loadFromXml(QString content);
 private:
     /*
      * Script ASS file name.

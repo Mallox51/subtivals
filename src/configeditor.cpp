@@ -27,26 +27,22 @@
 #include "styleeditor.h"
 
 
-#define NB_PRESETS 6
-#define DEFAULT_HEIGHT 200
-#define DEFAULT_COLOR "#000000"
-
-#define DEFAULT_OUTLINE_COLOR "#000000"
-#define DEFAULT_OUTLINE_WIDTH 0
-
-
 ConfigEditor::ConfigEditor(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::ConfigEditor),
-    m_styleEditor(new StyleEditor()),
+    m_styleEditor(new StyleEditor(this)),
     m_preset(-1),
     m_parentWidget(parent)
 {
     ui->setupUi(this);
     ui->tabStyles->setLayout(m_styleEditor->layout());
     connect(m_styleEditor, SIGNAL(styleChanged()), this, SIGNAL(styleChanged()));
+    connect(m_styleEditor, SIGNAL(styleOverriden(bool)), this, SIGNAL(styleOverriden(bool)));
     connect(m_styleEditor, SIGNAL(styleChanged()), this, SLOT(enableButtonBox()));
     connect(ui->hideDesktop, SIGNAL(toggled(bool)), this, SIGNAL(hideDesktop(bool)));
+
+    connect(ui->enableWeblive, SIGNAL(toggled(bool)), this, SIGNAL(webliveEnabled(bool)));
+
     adjustSize();
     setMaximumSize(size());
 
@@ -126,6 +122,23 @@ void ConfigEditor::setColor(QPushButton* button, const QColor& c)
     p.setBrush(c);
     p.drawRect(0, 0, 24, 24);
     button->setIcon(pm);
+}
+
+void ConfigEditor::enableWeblive(bool p_state)
+{
+    ui->iconWeblive->setVisible(p_state);
+    ui->urlWeblive->setVisible(p_state);
+    ui->enableWeblive->setEnabled(p_state);
+}
+
+void ConfigEditor::webliveConnected(bool p_state, QString p_url)
+{
+    QString message = QString("<a href=\"%1\">%1</a>");
+    if (!p_state) {
+        message = QString("<span style=\"color: red\">%1</span>");
+    }
+    ui->urlWeblive->setText(message.arg(p_url));
+    ui->iconWeblive->setPixmap(QPixmap(p_state ? ":/icons/on.svg" : ":/icons/off.svg"));
 }
 
 void ConfigEditor::restore()
@@ -222,6 +235,26 @@ void ConfigEditor::onClicked(QAbstractButton* btn)
 
 void ConfigEditor::enableButtonBox(bool restore, bool cancel, bool save)
 {
+    // Show preset as unsaved in combobox.
+    for (int i = 0; i < ui->presets->count(); i++) {
+        ui->presets->setItemText(i, ui->presets->itemText(i).replace("*", ""));
+    }
+    if (save) {
+        QString current = ui->presets->currentText().append("*");
+        ui->presets->setItemText(ui->presets->currentIndex(), current);
+    }
+
+    // Show current tab as unsaved.
+    if (save) {
+        QString current = ui->tabs->tabText(ui->tabs->currentIndex()).replace("*", "").append("*");
+        ui->tabs->setTabText(ui->tabs->currentIndex(), current);
+    }
+    else {
+        for (int i = 0; i < ui->tabs->count(); i++) {
+            ui->tabs->setTabText(i, ui->tabs->tabText(i).replace("*", ""));
+        }
+    }
+
     ui->buttonBox->button(QDialogButtonBox::RestoreDefaults)->setEnabled(restore);
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setEnabled(cancel);
     ui->buttonBox->button(QDialogButtonBox::Save)->setEnabled(save);

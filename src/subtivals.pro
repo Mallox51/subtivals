@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui widgets
+QT       += core gui widgets websockets xml
 
 TARGET = subtivals
 TEMPLATE = app
@@ -20,7 +20,9 @@ SOURCES += main.cpp\
     configeditor.cpp \
     player.cpp \
     styleadvanced.cpp \
-    shortcuteditor.cpp
+    shortcuteditor.cpp \
+    wizard.cpp \
+    weblive.cpp
 
 HEADERS  += mainwindow.h \
     script.h \
@@ -31,14 +33,17 @@ HEADERS  += mainwindow.h \
     configeditor.h \
     player.h \
     styleadvanced.h \
-    shortcuteditor.h
+    shortcuteditor.h \
+    wizard.h \
+    weblive.h
 
 FORMS    += mainwindow.ui \
     subtitlesform.ui \
     styleeditor.ui \
     configeditor.ui \
     styleadvanced.ui \
-    shortcuteditor.ui
+    shortcuteditor.ui \
+    wizard.ui
 
 RESOURCES += \
     ../resources/icons.qrc \
@@ -47,6 +52,12 @@ RESOURCES += \
 TRANSLATIONS = ../locale/fr_FR.ts \
     ../locale/es_ES.ts \
     ../locale/ca_ES.ts
+
+isEmpty(QMAKE_LRELEASE) {
+    win32:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]/lrelease.exe
+    else: QMAKE_LRELEASE = $$[QT_INSTALL_BINS]/lrelease
+}
+QMAKE_POST_LINK += $$QMAKE_LRELEASE $$_PRO_FILE_
 
 RC_FILE = ../resources/subtivals.rc
 
@@ -85,10 +96,11 @@ mac {
 TRANSLATIONS_PATH_STR = '\\"$${TRANSLATIONS_PATH}\\"'
 DEFINES += TRANSLATIONS_PATH=\"$${TRANSLATIONS_PATH_STR}\"
 
-VERSION = 1.7.4
+VERSION = 1.8.0
 DEFINES += VERSION=\\\"$$VERSION\\\"
 
 OTHER_FILES += \
     ../debian/control \
+    ../debian/rules \
     ../debian/changelog \
     ../win-installer/installer.nsi

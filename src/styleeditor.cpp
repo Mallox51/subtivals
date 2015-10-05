@@ -26,9 +26,9 @@
 #include "styleadvanced.h"
 
 
-StyleEditor::StyleEditor(Script* script, QWidget *parent) :
+StyleEditor::StyleEditor(QWidget *parent) :
     QWidget(parent),
-    m_script(script),
+    m_script(0),
     m_preset(-1),
     ui(new Ui::StyleEditor)
 {
@@ -51,7 +51,7 @@ void StyleEditor::advancedConfig()
     Style* style = m_script->style(styleName);
     StyleAdvanced config(style, this);
     connect(&config, SIGNAL(styleChanged()), SLOT(apply()));
-    config.move(this->geometry().topLeft());
+    config.move(this->parentWidget()->geometry().center());
     config.exec();
 }
 
@@ -92,6 +92,8 @@ void StyleEditor::styleSelected()
     font.setPixelSize(12);  // fixed size in combo
     ui->fontName->setCurrentFont(font);
     ui->fontSize->setValue(first->font().pixelSize());
+    ui->btnBold->setChecked(font.bold());
+    ui->btnItalic->setChecked(font.italic());
 
     foreach(QListWidgetItem* item, selected) {
         // If any style differs from first, clear fields
@@ -116,7 +118,7 @@ void StyleEditor::save()
     // Save overidden styles into settings
     QString line;
     foreach(Style* style, m_overidden) {
-        line = QString("%1/%2/%3/%4/%5/%7/%8/%9")
+        line = QString("%1/%2/%3/%4/%5/%7/%8/%9/%10/%11")
                 .arg(style->font().family())
                 .arg(style->font().pixelSize())
                 .arg(style->primaryColour().name())
@@ -124,7 +126,9 @@ void StyleEditor::save()
                 .arg(int(style->alignment()))
                 .arg(style->marginL())
                 .arg(style->marginR())
-                .arg(style->marginV());
+                .arg(style->marginV())
+                .arg(style->font().bold() ? "bold": "")
+                .arg(style->font().italic() ? "italic": "");
         settings.setValue(style->name(), line);
     }
     settings.endGroup();
@@ -135,7 +139,9 @@ void StyleEditor::reset()
     // Reload styles from backup and apply overidden styles from settings
     ui->stylesNames->clearSelection();
     ui->stylesNames->setCurrentRow(-1);
+
     m_overidden.clear();
+
     QSettings settings;
     settings.beginGroup(QString("Styles-%1").arg(m_preset));
     for(int i = 0; i < m_backup.size(); i++) {
@@ -143,9 +149,15 @@ void StyleEditor::reset()
         Style* style = m_script->style(original->name());
 
         QStringList overriden = settings.value(style->name(), "").toString().split("/");
-        if (overriden.size() == 8) {
+        if (overriden.size() >= 8) {
             QFont f(overriden[0]);
             f.setPixelSize(overriden.at(1).toInt());
+
+            if (overriden.size() >= 10) {
+                f.setBold(overriden.at(8) == "bold");
+                f.setItalic(overriden.at(9) == "italic");
+            }
+
             style->setFont(f);
             style->setPrimaryColour(QColor(overriden[2]));
             style->setLineSpacing(overriden.at(3).toDouble());
@@ -163,6 +175,9 @@ void StyleEditor::reset()
         }
     }
     settings.endGroup();
+
+    emit styleOverriden(m_overidden.size() > 0);
+
     if (ui->stylesNames->count() > 0)
         ui->stylesNames->setCurrentRow(0);
 
@@ -180,26 +195,29 @@ void StyleEditor::apply()
         return;
 
     foreach(QListWidgetItem* item, selected) {
-        // Style properties were edited, store a copy
         Style* style = m_script->style(item->text());
+
         int fontSize = style->font().pixelSize();
         QFont font = style->font();
         if (!ui->fontSize->text().isEmpty()) {
             fontSize = ui->fontSize->value();
             font.setPixelSize(ui->fontSize->value());
-            style->setFont(font);
         }
         if (ui->fontName->currentIndex() >= 0) {
             font = ui->fontName->currentFont();
             font.setPixelSize(fontSize);
-            style->setFont(font);
         }
+        font.setBold(ui->btnBold->isChecked());
+        font.setItalic(ui->btnItalic->isChecked());
+        style->setFont(font);
+
         if (m_colour != Qt::transparent) {
             style->setPrimaryColour(m_colour);
-
         }
+
         m_overidden.append(style);
         setStyleNameBold(item, true);
+        emit styleOverriden(true);
     }
 
     styleSelected();

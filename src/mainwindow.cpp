@@ -21,6 +21,7 @@
 #include <QtCore/QByteArray>
 #include <QtCore/QTextCodec>
 #include <QtCore/QFile>
+#include <QtCore/QTextStream>
 
 #include <QFileDialog>
 #include <QDesktopWidget>
@@ -31,13 +32,14 @@
 #include <QPainter>
 #include <QMimeData>
 #include <QStyledItemDelegate>
-
+#include <QStyle>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "configeditor.h"
 #include "player.h"
 #include "shortcuteditor.h"
+#include "wizard.h"
 
 /**
  * A small delegate class to allow rich text rendering in main table cells.
@@ -145,11 +147,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->tableWidget->setFocus();
     setAcceptDrops(true);
 
+    // Disable print out by default.
+    ui->actionOperatorPrintout->setEnabled(false);
+
     // Add preferences dock
     m_preferences->setVisible(false);
     ui->mainLayout->addWidget(m_preferences);
     ui->statusBar->addPermanentWidget(m_countDown);
     ui->statusBar->addPermanentWidget(m_scriptProperties);
+    connect(m_preferences, SIGNAL(styleOverriden(bool)), this, SLOT(showStyleOverriden(bool)));
 
     // Selection timer (disables subtitle highlighting for a while)
     m_timerSelection.setSingleShot(true);
@@ -261,8 +267,14 @@ void MainWindow::showEvent(QShowEvent *)
     settings.beginGroup("MainWindow");
     m_lastFolder = settings.value("lastFolder", "").toString();
     resize(settings.value("size", size()).toSize());
-    QPoint pos(100, 200);
+
+    // Place window at center, below black screen by default.
+    QRect screenGeom = qApp->desktop()->screenGeometry();
+    int center = (screenGeom.width() - geometry().width()) / 2;
+    int decorationHeight = style()->pixelMetric(QStyle::PM_TitleBarHeight);
+    QPoint pos(center, DEFAULT_HEIGHT + decorationHeight);
     move(settings.value("pos", pos).toPoint());
+
     m_preferences->reset();
 
     m_reloadEnabled = settings.value("reloadEnabled", false).toBool();
@@ -273,10 +285,16 @@ void MainWindow::showEvent(QShowEvent *)
     ui->actionPreferences->setChecked(settings.value("showPreferences", true).toBool());
     ui->actionDurationCorrection->setChecked(settings.value("durationCorrection", false).toBool());
     ui->actionShowMilliseconds->setChecked(settings.value("showMilliseconds", false).toBool());
+
+    if (settings.value("wizard", true).toBool()) {
+        ui->actionShowWizard->trigger();
+        settings.setValue("wizard", false);
+    }
+
     settings.endGroup();
 }
 
-const ConfigEditor* MainWindow::configEditor()
+ConfigEditor* MainWindow::configEditor()
 {
     return m_preferences;
 }
@@ -284,6 +302,41 @@ const ConfigEditor* MainWindow::configEditor()
 const Player* MainWindow::player()
 {
     return m_player;
+}
+
+void MainWindow::actionShowWizard()
+{
+    Wizard wizard;
+    wizard.setPixmap(Wizard::LogoPixmap, QPixmap(":/icons/subtivals.svg"));
+    wizard.exec();
+}
+
+void MainWindow::actionOperatorPrintout()
+{
+    QString fileName = QFileDialog::getSaveFileName(this,
+            tr("Save list as spreadsheet"),
+            m_lastFolder + "/" + tr("spreadsheet") + ".csv",
+            tr("Comma-separated files (*.csv)"));
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+    if (!fileName.endsWith(".csv")) {
+        fileName.append(".csv");
+    }
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::information(this, tr("Unable to write file"), file.errorString());
+        return;
+    }
+
+    QTextStream out(&file);
+    out << m_script->exportList(Script::CSV);
+    file.close();
+    QMessageBox::information(this,
+                             tr("Saved successfully"),
+                             tr("Subtitles exported to <i>%1</i>").arg(fileName));
+
 }
 
 void MainWindow::actionShowCalibration(bool p_state)
@@ -389,6 +442,9 @@ void MainWindow::openFile (const QString &p_fileName)
     // Refresh the state of the comments column
     actionConfig(m_preferences->isVisible());
 
+    // File opened, enable print out.
+    ui->actionOperatorPrintout->setEnabled(true);
+
     actionDurationCorrection(ui->actionDurationCorrection->isChecked());
 
 	setState(STOPPED);
@@ -416,6 +472,8 @@ void MainWindow::closeFile()
     }
     m_tableMapping.clear();
     m_currentSubtitles.clear();
+    // No file, disable print out.
+    ui->actionOperatorPrintout->setEnabled(false);
 
     setWindowTitle(tr("Subtivals"));
     m_scriptProperties->setText("");
@@ -475,6 +533,17 @@ void MainWindow::actionAutoHideEnded(bool p_state)
     m_player->enableAutoHide(p_state);
 }
 
+void MainWindow::showStyleOverriden(bool p_state)
+{
+    QTableWidgetItem* item = new QTableWidgetItem();
+    item->setText(ui->tableWidget->horizontalHeaderItem(COLUMN_STYLE)->text());
+    if (p_state) {
+        item->setIcon(QIcon(":/icons/important.svg"));
+        item->setToolTip(tr("Some styles are currently overriden in preferences."));
+    }
+    ui->tableWidget->setHorizontalHeaderItem(COLUMN_STYLE, item);
+}
+
 void MainWindow::fileChanged(QString path)
 {
     // Script file is being modified.
@@ -512,7 +581,7 @@ void MainWindow::actionOpen()
     QString fileName = QFileDialog::getOpenFileName(this,
                                                     tr("Open subtitles"),
                                                     m_lastFolder,
-                                                    tr("Subtitle Files (*.ass *.srt *.txt)"));
+                                                    tr("Subtitle Files (*.ass *.srt *.txt *.xml)"));
     // Subtitle file selected ?
     if (!fileName.isEmpty()) {
         m_lastFolder = QFileInfo(fileName).absoluteDir().absolutePath();
@@ -617,9 +686,11 @@ void MainWindow::actionConfig(bool state)
             ui->tableWidget->hideColumn(COLUMN_COMMENTS);
         else {
             ui->tableWidget->showColumn(COLUMN_COMMENTS);
-            ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
-            ui->tableWidget->resizeColumnToContents(COLUMN_TEXT);
         }
+        ui->tableWidget->resizeColumnToContents(COLUMN_STYLE);
+        ui->tableWidget->resizeColumnToContents(COLUMN_COMMENTS);
+        ui->tableWidget->resizeColumnToContents(COLUMN_TEXT);
+        ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     }
     // Show/Hide the config dialog
     m_preferences->setVisible(state);
@@ -972,5 +1043,5 @@ void MainWindow::actionAbout()
 
 void MainWindow::actionShowHelp()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/traxtech/subtivals/wiki/User-Manual"));
+    QDesktopServices::openUrl(QUrl("http://help.subtivals.org"));
 }
