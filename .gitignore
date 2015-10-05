@@ -7,5 +7,7 @@ ui_*.h
 Makefile
 subtivals
 
+/build-*
+
 .DS_Store
 
